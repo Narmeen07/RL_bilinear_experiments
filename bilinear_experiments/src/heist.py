@@ -10,6 +10,7 @@ from src.vec_env.procgen_wrappers import TransposeFrame
 from src.vec_env.procgen_wrappers import ScaledFloatFrame
 import random
 
+
 def wrap_venv(venv) -> ToBaselinesVecEnv:
     "Wrap a vectorized env, making it compatible with the gym apis, transposing, scaling, etc."
 
@@ -20,29 +21,13 @@ def wrap_venv(venv) -> ToBaselinesVecEnv:
     venv = ScaledFloatFrame(venv)
     return venv  
 
-def create_venv(
-    num: int, start_level: int, num_levels: int, num_threads: int = 1, distribution_mode: str = "easy"
-):
-    """
-    Create a wrapped venv. See https://github.com/openai/procgen#environment-options for params
-
-    num=1 - The number of parallel environments to create in the vectorized env.
-
-    num_levels=0 - The number of unique levels that can be generated. Set to 0 to use unlimited levels.
-
-    start_level=0 - The lowest seed that will be used to generated levels. 'start_level' and 'num_levels' fully specify the set of possible levels.
-    """
-    venv = ProcgenGym3Env(
-        num=num,
-        env_name="heist",
-        num_levels=num_levels,
-        start_level=start_level,
-        distribution_mode=distribution_mode,
-        num_threads=num_threads,
-        render_mode="rgb_array",
-    )
-    venv = wrap_venv(venv)
-    return venv
+def create_venv(num_envs, num_levels, start_level):
+    venv = ProcgenEnv(num_envs=num_envs, env_name="heist",
+                      num_levels=num_levels, start_level=start_level,
+                      distribution_mode="easy")
+    venv = VecExtractDictObs(venv, "rgb")
+    venv = VecMonitor(venv=venv, filename=None, keep_buf=100)
+    return VecNormalize(venv=venv, ob=False)
     
 
 #load the model and the state dict
@@ -73,8 +58,5 @@ def load_model(model_path,kernel_size):
     print(f"Model loaded from {model_path}")
     return model
 
-def create_dataset(num_samples= 100, num_levels= 0):
-    dataset = []
-    for i in range(num_samples):
-        dataset.append(create_venv(num=1, start_level=random.randint(1000, 10000), num_levels=num_levels))
-    return dataset
+
+
