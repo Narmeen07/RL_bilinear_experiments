@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 
 class BilinearGatedFC(nn.Module):
-    def __init__(self, in_features, out_features):
+    def __init__(self, in_features, out_features, bias = False):
         super(BilinearGatedFC, self).__init__()
         # Transform linear operation
-        self.transform = nn.Linear(in_features, out_features)
+        self.transform = nn.Linear(in_features, out_features, bias=bias)
         # Gating linear operation
-        self.gate = nn.Linear(in_features, out_features)
+        self.gate = nn.Linear(in_features, out_features, bias=bias)
 
     def forward(self, x):
         transformed = self.transform(x)
@@ -15,12 +15,12 @@ class BilinearGatedFC(nn.Module):
         return transformed * gating_factor
 
 class BilinearGatedActivation2D(nn.Module):
-    def __init__(self, in_channels, out_channels, kernel_size,padding):
+    def __init__(self, in_channels, out_channels, kernel_size,padding, bias = False):
         super(BilinearGatedActivation2D, self).__init__()
         # Convolution to transform the input
-        self.transform = nn.Conv2d(in_channels, out_channels, kernel_size =kernel_size, padding=padding) 
+        self.transform = nn.Conv2d(in_channels, out_channels, kernel_size =kernel_size, padding=padding, bias=bias) 
         # Convolution to create a gating signal
-        self.gate = nn.Conv2d(in_channels, out_channels, kernel_size= kernel_size,padding = padding)
+        self.gate = nn.Conv2d(in_channels, out_channels, kernel_size= kernel_size,padding = padding, bias=bias)
 
     def forward(self, x):
 
