@@ -102,5 +102,3 @@ def create_gif(frames, filename='episode.gif'):
         for frame in frames:
             writer.append_data(frame)
     print(f'GIF saved as {filename}')
-
-
