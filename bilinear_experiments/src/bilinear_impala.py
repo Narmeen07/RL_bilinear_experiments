@@ -5,7 +5,7 @@ class ResidualBlock(nn.Module):
 
     def __init__(self, channels,kernel_size):
         super(ResidualBlock, self).__init__()
-        padding = (kernel_size - 1) / 2
+        padding = (kernel_size - 1) // 2
         self.conv0 = nn.Conv2d(in_channels=channels,
                                out_channels=channels,
                                kernel_size=kernel_size,
@@ -39,7 +39,7 @@ class ConvSequence(nn.Module):
         super(ConvSequence, self).__init__()
         self._input_shape = input_shape
         self._out_channels = out_channels
-        padding = (kernel_size - 1) / 2
+        padding = (kernel_size - 1) // 2
         self.conv = nn.Conv2d(in_channels=self._input_shape[0],
                               out_channels=self._out_channels,
                               kernel_size=kernel_size,
