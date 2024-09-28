@@ -1,4 +1,4 @@
-from src.bilinear_impala import BimpalaCNN
+from src.bilinear_impala_simplified import BimpalaCNN
 import torch
 from procgen import ProcgenEnv
 from procgen import ProcgenGym3Env

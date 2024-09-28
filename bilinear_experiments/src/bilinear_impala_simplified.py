@@ -8,11 +8,11 @@ class ResidualBlock(nn.Module):
         self.conv0 = nn.Conv2d(in_channels=channels,
                                out_channels=channels,
                                kernel_size=kernel_size,
-                               padding=padding, bias=True)
+                               padding=padding, bias=False)
         self.conv1 = nn.Conv2d(in_channels=channels,
                                out_channels=channels,
                                kernel_size=kernel_size,
-                               padding=padding, bias=True)
+                               padding=padding, bias=False)
 
     def gated_conv(self, x):
         A = self.conv0(x) 
@@ -69,9 +69,9 @@ class BimpalaCNN(nn.Module):
 
         self.conv_seqs = nn.ModuleList(conv_seqs)
         self.hidden_fc1 = nn.Linear(in_features=shape[0] * shape[1] * shape[2],
-                                   out_features=256, bias=True)
+                                   out_features=256, bias=False)
         self.hidden_fc2 = nn.Linear(in_features=shape[0] * shape[1] * shape[2],
-                                   out_features=256, bias=True)
+                                   out_features=256, bias=False)
 
         self.logits_fc = nn.Linear(in_features=256, out_features=num_outputs)
         self.value_fc = nn.Linear(in_features=256, out_features=1)
