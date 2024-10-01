@@ -138,17 +138,17 @@ class TopKBimpalaCNN(nn.Module):
 
         #the linear algebra
         eigvals, eigvecs = torch.linalg.eigh(self.B)
-        """
-        abs_eigenvalues = torch.abs(eigvals)
-        _, indices = torch.sort(abs_eigenvalues, descending=True, dim=1)
-        top_k_indices = indices[:, :self.topk]
-        top_k_eigenvectors = torch.gather(eigvecs, 2, top_k_indices.unsqueeze(-1).expand(-1, -1, eigvecs.shape[-1]))
-        self.top_k_eigenvectors = top_k_eigenvectors.transpose(1, 2)
-        self.top_k_eigenvalues = torch.gather(eigvals, 1, top_k_indices)
-        """
-        self.top_k_eigenvectors = eigvecs
-        self.top_k_eigenvalues = eigvals
-        
+        # Initialize tensors to store the top-k eigenvalues and eigenvectors for each class
+        self.top_k_eigenvalues = torch.empty(eigvals.size(0), self.topk)
+        self.top_k_eigenvectors = torch.empty(eigvecs.size(0), eigvecs.size(1), self.topk)
+
+        # Sort eigenvalues and eigenvectors for each class separately
+        for i in range(eigvals.size(0)):
+            sorted_indices = torch.argsort(torch.abs(eigvals[i]), descending=True)
+            topk_indices = sorted_indices[:self.topk]
+            self.top_k_eigenvalues[i] = eigvals[i, topk_indices]
+            self.top_k_eigenvectors[i] = eigvecs[i, :, topk_indices]
+
         nn.init.orthogonal_(self.logits_fc.weight, gain=0.01)
         nn.init.zeros_(self.logits_fc.bias)
 
@@ -160,7 +160,7 @@ class TopKBimpalaCNN(nn.Module):
         for conv_seq in self.conv_seqs:
             x = conv_seq(x)
         x = torch.flatten(x, start_dim=1)
-
+        #print("shape of eigenvectors and eigenvalues", self.top_k_eigenvectors.shape, self.top_k_eigenvalues.shape)
         sims = torch.einsum("c f t, b f -> b c t", self.top_k_eigenvectors.to(x.device), x)
         logits = torch.einsum("c t, b c t -> b c", self.top_k_eigenvalues.to(x.device), sims**2)
 

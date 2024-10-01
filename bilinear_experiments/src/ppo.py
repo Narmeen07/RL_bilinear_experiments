@@ -102,4 +102,4 @@ def create_gif(frames, filename='episode.gif'):
     with imageio.get_writer(filename, mode='I', duration=0.033) as writer:
         for frame in frames:
             writer.append_data(frame)
-    print(f'GIF saved as {filename}')
+
