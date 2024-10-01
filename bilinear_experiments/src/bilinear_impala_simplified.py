@@ -138,13 +138,17 @@ class TopKBimpalaCNN(nn.Module):
 
         #the linear algebra
         eigvals, eigvecs = torch.linalg.eigh(self.B)
+        """
         abs_eigenvalues = torch.abs(eigvals)
         _, indices = torch.sort(abs_eigenvalues, descending=True, dim=1)
         top_k_indices = indices[:, :self.topk]
-        self.top_k_eigenvectors = torch.gather(eigvecs, 2, top_k_indices.unsqueeze(-1).expand(-1, -1, eigvecs.shape[-1]))
-        self.top_k_eigenvectors = self.top_k_eigenvectors.transpose(1, 2)
+        top_k_eigenvectors = torch.gather(eigvecs, 2, top_k_indices.unsqueeze(-1).expand(-1, -1, eigvecs.shape[-1]))
+        self.top_k_eigenvectors = top_k_eigenvectors.transpose(1, 2)
         self.top_k_eigenvalues = torch.gather(eigvals, 1, top_k_indices)
-
+        """
+        self.top_k_eigenvectors = eigvecs
+        self.top_k_eigenvalues = eigvals
+        
         nn.init.orthogonal_(self.logits_fc.weight, gain=0.01)
         nn.init.zeros_(self.logits_fc.bias)
 
@@ -156,7 +160,7 @@ class TopKBimpalaCNN(nn.Module):
         for conv_seq in self.conv_seqs:
             x = conv_seq(x)
         x = torch.flatten(x, start_dim=1)
-        
+
         sims = torch.einsum("c f t, b f -> b c t", self.top_k_eigenvectors.to(x.device), x)
         logits = torch.einsum("c t, b c t -> b c", self.top_k_eigenvalues.to(x.device), sims**2)
 
