@@ -13,14 +13,15 @@ import torch
 import numpy as np
 import imageio
 from procgen import ProcgenEnv
-from vec_env import VecExtractDictObs, VecMonitor, VecNormalize
+from src.vec_env import VecExtractDictObs, VecMonitor, VecNormalize
 from src.bilinear_impala import BimpalaCNN  # Adjust the import path based on your actual module location
 import multiprocessing
 from tqdm import tqdm
+import cv2
 
 class PPO:
-    def __init__(self, model, device):
-        self.model = model
+    def __init__(self, model, device= "cpu"):
+        self.model = model.to(device)
         self.device = device
     
     def batch_act(self, observations):
@@ -31,7 +32,7 @@ class PPO:
             return dist.sample().cpu().numpy()
 # Configuration
 class Config:
-    env_name = 'heist'
+    env_name = 'maze'
     num_envs = 1
     num_levels = 0  # Set to 0 for infinite levels or specify for deterministic levels
     start_level = 0
@@ -55,14 +56,14 @@ def rollout_episode(agent, env):
     done = False
     while not done:
         action = agent.batch_act(obs)
-        obs, _, dones, infos = env.step(action)
+        obs, reward, dones, infos = env.step(action)
 
         # Render the current environment state as an RGB array
         frame = env.render(mode='rgb_array')
         frames.append(frame)  # Append the RGB frame directly obtained from the environment
 
         done = dones.any()
-    return frames
+    return frames, reward
 def rollout_episode_obs(agent, env):
     obs = env.reset()
     observations = [obs]
