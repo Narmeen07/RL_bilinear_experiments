@@ -157,13 +157,10 @@ class TopKBimpalaCNN(nn.Module):
             x = conv_seq(x)
         x = torch.flatten(x, start_dim=1)
         
-        # More intuitive einsum for similarities
         sims = torch.einsum("c f t, b f -> b c t", self.top_k_eigenvectors.to(x.device), x)
-         
-        # More intuitive einsum for logits
         logits = torch.einsum("c t, b c t -> b c", self.top_k_eigenvalues.to(x.device), sims**2)
-        logits += logits + self.logits_fc.bias
-        
+
+        logits = logits + self.logits_fc.bias
         dist = torch.distributions.Categorical(logits=logits)
         x = self.hidden_fc1(x) * self.hidden_fc2(x)
         value = self.value_fc(x)
