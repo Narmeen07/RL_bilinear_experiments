@@ -1,5 +1,4 @@
 .venv
-bilinear_experiments/src/__*
-bilinear_experiments/src/vec_env*
-bilinear_experiments/conv_exact_decomposition
-bilinear_experiments/sims_mlp_eigvecs
+bilinear_experiments/results
+bilinear_experiments/bilinear_models
+bilinear_experiments/datasets
