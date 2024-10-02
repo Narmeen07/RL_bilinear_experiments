@@ -162,7 +162,9 @@ class TopKBimpalaCNN(nn.Module):
         x = torch.flatten(x, start_dim=1)
         #print("shape of eigenvectors and eigenvalues", self.top_k_eigenvectors.shape, self.top_k_eigenvalues.shape)
         sims = torch.einsum("c f t, b f -> b c t", self.top_k_eigenvectors.to(x.device), x)
+        #print("sims shape", sims.shape)
         logits = torch.einsum("c t, b c t -> b c", self.top_k_eigenvalues.to(x.device), sims**2)
+        #print("logits are", logits)
 
         logits = logits + self.logits_fc.bias
         dist = torch.distributions.Categorical(logits=logits)
