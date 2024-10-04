@@ -21,8 +21,8 @@ def wrap_venv(venv) -> ToBaselinesVecEnv:
     venv = ScaledFloatFrame(venv)
     return venv  
 
-def create_venv(num_envs, num_levels, start_level):
-    venv = ProcgenEnv(num_envs=num_envs, env_name="heist",
+def create_venv(num_envs=1, num_levels=0, start_level=0,env_name = "maze"):
+    venv = ProcgenEnv(num_envs=num_envs, env_name=env_name,
                       num_levels=num_levels, start_level=start_level,
                       distribution_mode="easy")
     venv = VecExtractDictObs(venv, "rgb")
@@ -31,12 +31,12 @@ def create_venv(num_envs, num_levels, start_level):
     
 
 #load the model and the state dict
-def load_model(model_path,kernel_size):
+def load_model(model_path,kernel_size, env_name ="maze"):
     # Initialize your model
     venv = ProcgenEnv(
         num_envs=1,
-        env_name="heist",
-        num_levels= 100000,
+        env_name=env_name,
+        num_levels= 0,
         start_level=0,
         distribution_mode="easy",
         num_threads=4,
@@ -45,12 +45,12 @@ def load_model(model_path,kernel_size):
     venv = VecMonitor(venv=venv, filename=None, keep_buf=100)
     venv = VecNormalize(venv=venv, ob=False)
  
-
     model = BimpalaCNN(
         obs_space=venv.observation_space,
         num_outputs=venv.action_space.n,
         kernel_size = kernel_size
     )
+
     # Load the state dict
     state_dict = torch.load(model_path)
     # Load the state dict into your model
