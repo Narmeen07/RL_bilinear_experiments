@@ -50,19 +50,19 @@ def create_venv(config):
     return VecNormalize(venv=venv, ob=False)
 
 # Run a single episode and collect frames
-def rollout_episode(agent, env):
+def rollout_episode(agent, env, return_info= False):
     obs = env.reset()
     frames = []
     done = False
     while not done:
         action = agent.batch_act(obs)
         obs, reward, dones, infos = env.step(action)
-
         # Render the current environment state as an RGB array
         frame = env.render(mode='rgb_array')
         frames.append(frame)  # Append the RGB frame directly obtained from the environment
-
         done = dones.any()
+    if return_info:
+        return frames, reward, infos[0]['episode']
     return frames, reward
 def rollout_episode_obs(agent, env):
     obs = env.reset()
