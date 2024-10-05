@@ -15,9 +15,18 @@ import imageio
 from procgen import ProcgenEnv
 from src.vec_env import VecExtractDictObs, VecMonitor, VecNormalize
 from src.bilinear_impala import BimpalaCNN  # Adjust the import path based on your actual module location
-import multiprocessing
 from tqdm import tqdm
 import cv2
+from src.maze_env import (
+    EnvState,
+    get_wall_presence_tensor,
+    get_object_presence_tensor,
+    get_next_n_moves_graph,
+    get_neighbouring_wall_positions,
+    maze_grid_to_graph,
+    get_mouse_pos,
+    MAZE_ACTION_INDICES
+)
 
 class PPO:
     def __init__(self, model, device= "cpu"):
@@ -30,6 +39,50 @@ class PPO:
             observations = torch.tensor(observations, dtype=torch.float32, device=self.device)
             dist, value = self.model(observations)
             return dist.sample().cpu().numpy()
+    
+    def get_next_n_actions_labels(self, grid, n):
+        graph = maze_grid_to_graph(grid)
+        mouse_pos = get_mouse_pos(grid)
+        next_moves = get_next_n_moves_graph(grid, graph, n, mouse_pos)
+        return np.array([MAZE_ACTION_INDICES[move][0] for move in next_moves])
+    
+    def create_dataset_with_labels(self, env, num_episodes=100, max_steps_per_episode=1000, n_actions=5):
+        dataset = []
+        
+        for episode in tqdm(range(num_episodes), desc="Generating dataset"):
+            obs = env.reset()
+            done = False
+            step = 0
+            
+            while not done and step < max_steps_per_episode:
+                action = self.batch_act(obs)
+                next_obs, _, dones, _ = env.step(action)
+                
+                # Generate labels
+                env_state = EnvState(env.env.callmethod("get_state")[0])
+                grid = env_state.full_grid()
+                
+                labels = {
+                    'cheese_presence': get_object_presence_tensor(grid, 'cheese').flatten(),
+                    'wall_presence': get_wall_presence_tensor(grid).flatten(),
+                    'next_n_actions': self.get_next_n_actions_labels(grid, n_actions),
+                    'mouse_location': np.array(get_mouse_pos(grid)),
+                    'neighbouring_walls': get_neighbouring_wall_positions(grid, get_mouse_pos(grid))[1]
+                }
+                
+                dataset.append({
+                    'observation': obs,
+                    'next_observation': next_obs,
+                    'action': action,
+                    'labels': labels
+                })
+                
+                obs = next_obs
+                done = dones.any()
+                step += 1
+        
+        return dataset
+    
 # Configuration
 class Config:
     env_name = 'maze'
@@ -38,7 +91,7 @@ class Config:
     start_level = 0
     distribution_mode = 'easy'
     gpu = 0
-    model_file = "/mnt/ssd-1/mechinterp/narmeen/bilinear_experiments_official/bilinear_experiments/bimpala_without_dropout_10501.0.pt"
+    model_file = "/mnt/ssd-1/mechinterp/narmeen/bilinear_experiments_official/bilinear_experiments/bilinear_models/bimpala_maze_simplified.pt"
 
 # Create environment
 def create_venv(config):
