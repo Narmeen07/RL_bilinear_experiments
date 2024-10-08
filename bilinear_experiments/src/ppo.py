@@ -16,7 +16,7 @@ from procgen import ProcgenEnv
 from src.vec_env import VecExtractDictObs, VecMonitor, VecNormalize
 from src.bilinear_impala import BimpalaCNN  # Adjust the import path based on your actual module location
 from tqdm import tqdm
-import cv2
+#import cv2
 from src.maze_env import (
     EnvState,
     get_wall_presence_tensor,
