@@ -117,17 +117,18 @@ def rollout_episode(agent, env, return_info= False):
     if return_info:
         return frames, reward, infos[0]['episode']
     return frames, reward
-def rollout_episode_obs(agent, env):
+def rollout_episode_obs(agent, env, progress= 20):
     obs = env.reset()
     observations = [obs]
     done = False
+    i = 0
     while not done:
         action = agent.batch_act(obs)
         obs, _, dones, infos = env.step(action)
-        # Attempt to clone or serialize the environment state
-        observations.append(obs)
+        if i % progress == 0:
+            observations.append(obs)
+        i += 1
         done = dones.any()
-
     return observations
 def random_rollout_episode(agent, env, max_random_steps = 200):
     obs = env.reset()
