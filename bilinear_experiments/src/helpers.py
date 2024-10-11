@@ -570,7 +570,7 @@ def run_episode_with_steering_and_check_target_acquisition(env, model, steering_
 
         observation, reward, done, info = env.step(action)
 
-        lock_positions_after = get_lock_positions(heist.state_from_venv(env, 0))
+        lock_positions_after = heist.get_lock_positions(heist.state_from_venv(env, 0))
         if lock_positions_before != lock_positions_after:
             num_changes_counted +=1
         total_reward += reward
