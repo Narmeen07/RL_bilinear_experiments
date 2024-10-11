@@ -8,3 +8,4 @@ bilinear_experiments/results
 bilinear_experiments/src/__pycache__/*
 bilinear_experiments/bilinear_models
 bilinear_experiments/datasets
+bilinear_experiments/episode*
