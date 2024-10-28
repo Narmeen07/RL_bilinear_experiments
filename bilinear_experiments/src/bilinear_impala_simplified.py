@@ -268,7 +268,7 @@ class EigenRecon_BimpalaCNN(nn.Module):
                 self.my_eigenvectors[i] = eigvecs[i, :, my_indices]
         # CASE: List of Indices
         elif self.eigen_indices is not None:
-            # Initialize tensors to store the top-k eigenvalues and eigenvectors for each class
+            # Initialize tensors to store the eigenvalues and eigenvectors for each class
             self.my_eigenvalues = torch.empty(eigvals.size(0), len(self.eigen_indices))
             self.my_eigenvectors = torch.empty(eigvecs.size(0), eigvecs.size(1), len(self.eigen_indices))
 
