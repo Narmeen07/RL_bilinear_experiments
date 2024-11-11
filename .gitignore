@@ -1,5 +1,11 @@
 .venv
 .gitattributes
+
+# inception experiments- ignore the downloaded images and image net labels
+bilinear_experiments/src/*.jpg
+bilinear_experiments/src/*.txt*
+bilinear_experiments/src/data
+
 bilinear_experiments/src/__*
 bilinear_experiments/src/vec_env/*
 bilinear_experiments/conv_exact_decomposition

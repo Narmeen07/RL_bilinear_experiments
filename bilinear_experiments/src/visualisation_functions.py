@@ -1,6 +1,18 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.gridspec import GridSpec
+import seaborn as sns
+from matplotlib.colors import LinearSegmentedColormap
+
+import torch
+import torch.nn.functional as F
+from torchvision import transforms
+from PIL import Image
+import cv2
+from scipy.ndimage import zoom
+
+
 def plot_top_f1_scores(new_classification_data, categories, colors, top_n=15, title=None):
-    import matplotlib.pyplot as plt
-    import numpy as np
 
     # Parse f1-scores from the classification reports
     f1_scores = [report['0']['f1-score'] for report in new_classification_data]
@@ -38,12 +50,112 @@ def plot_top_f1_scores(new_classification_data, categories, colors, top_n=15, ti
     plt.show()
 
 
-# weight visualizations a la Claude 
+# weight visualizations a la Claude #1 
 
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.gridspec import GridSpec
-import seaborn as sns
+
+def create_weight_matrix_plot(weight_matrix, title="Weight Matrix", diverging=True):
+    """
+    Creates a heatmap visualization of neural network weights.
+    
+    Parameters:
+    weight_matrix: 2D numpy array of weights
+    title: String title for the plot
+    diverging: Boolean, whether to use diverging colormap (True) or sequential (False)
+    """
+    plt.figure(figsize=(10, 8))
+    
+    # Create custom colormap
+    if diverging:
+        colors = ['#4333ff', '#ffffff', '#ff3333']  # Blue to White to Red
+        n_bins = 256
+        cmap = LinearSegmentedColormap.from_list("custom", colors, N=n_bins)
+    else:
+        cmap = 'viridis'
+    
+    # Normalize the weights for better visualization
+    vmax = np.abs(weight_matrix).max()
+    vmin = -vmax if diverging else 0
+    
+    # Create heatmap
+    sns.heatmap(weight_matrix, 
+                cmap=cmap,
+                center=0 if diverging else None,
+                vmin=vmin,
+                vmax=vmax,
+                square=True,
+                cbar_kws={'label': 'Weight Value'})
+    
+    plt.title(title)
+    plt.xlabel('Output Features')
+    plt.ylabel('Input Features')
+    return plt.gcf()
+
+def visualize_feature_patterns(activation_matrix, n_top_features=5, title="Feature Activation Patterns"):
+    """
+    Visualizes top activation patterns for different features.
+    
+    Parameters:
+    activation_matrix: 2D numpy array of feature activations
+    n_top_features: Number of top features to display
+    title: String title for the plot
+    """
+    plt.figure(figsize=(15, 3 * n_top_features))
+    
+    # Get top activating examples for each feature
+    for i in range(min(n_top_features, activation_matrix.shape[1])):
+        activations = activation_matrix[:, i]
+        plt.subplot(n_top_features, 1, i + 1)
+        plt.plot(activations)
+        plt.title(f'Feature {i+1} Activation Pattern')
+        plt.xlabel('Position')
+        plt.ylabel('Activation')
+        
+    plt.tight_layout()
+    return plt.gcf()
+
+def attention_pattern_plot(attention_weights, title="Attention Pattern"):
+    """
+    Creates a visualization of attention patterns.
+    
+    Parameters:
+    attention_weights: 2D numpy array of attention weights
+    title: String title for the plot
+    """
+    plt.figure(figsize=(10, 8))
+    
+    # Create heatmap with custom colormap
+    sns.heatmap(attention_weights,
+                cmap='YlOrRd',
+                square=True,
+                cbar_kws={'label': 'Attention Weight'})
+    
+    plt.title(title)
+    plt.xlabel('Key Position')
+    plt.ylabel('Query Position')
+    return plt.gcf()
+
+# Example usage
+# if __name__ == "__main__":
+#     # Generate sample data
+#     np.random.seed(42)
+    
+#     # Sample weight matrix
+#     weights = np.random.randn(20, 20)
+#     fig1 = create_weight_matrix_plot(weights, "Sample Weight Matrix")
+    
+#     # Sample activation patterns
+#     activations = np.random.randn(100, 10)
+#     fig2 = visualize_feature_patterns(activations, n_top_features=3)
+    
+#     # Sample attention pattern
+#     attention = np.random.rand(15, 15)
+#     attention = attention / attention.sum(axis=1, keepdims=True)  # normalize
+#     fig3 = attention_pattern_plot(attention)
+    
+#     plt.show()
+
+# weight visualizations a la Claude  #2
+
 
 def visualize_conv_weights(weights, figsize=(12, 8), cmap='RdBu', normalize=True):
     """
@@ -160,15 +272,8 @@ def visualize_weight_stats(weights):
     for name, value in stats.items():
         print(f"{name}: {value:.4f}")
 
-import numpy as np
-import torch
-import torch.nn.functional as F
-import matplotlib.pyplot as plt
-from torchvision import transforms
-from PIL import Image
-import cv2
-from scipy.ndimage import zoom
-import seaborn as sns
+
+
 
 class ConvFilterAnalyzer:
     def __init__(self, model, device='cuda' if torch.cuda.is_available() else 'cpu'):
