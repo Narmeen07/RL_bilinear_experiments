@@ -8,8 +8,6 @@ import torch
 import torch.nn.functional as F
 from torchvision import transforms
 from PIL import Image
-import cv2
-from scipy.ndimage import zoom
 
 
 def plot_top_f1_scores(new_classification_data, categories, colors, top_n=15, title=None):
@@ -346,8 +344,10 @@ class ConvFilterAnalyzer:
         plt.title('Original Image')
         plt.axis('off')
         
+
         # Plot activation maps
         for i in range(n_filters):
+            
             ax = axes[i // n_cols, i % n_cols]
             activation = responses[0, i]
             
@@ -357,7 +357,9 @@ class ConvFilterAnalyzer:
             
             im = ax.imshow(activation, cmap='viridis')
             ax.axis('off')
-            ax.set_title(f'Filter {i}')
+            ax.set_title(f'Filter {filter_indices[i]}')
+            print(f'max: {activation.max()}, min:{activation.min()}')
+
         
         plt.tight_layout()
         return fig
