@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import einops
 
 class ResidualBlock(nn.Module):
     def __init__(self, channels, kernel_size):
@@ -107,9 +108,11 @@ class BimpalaCNN(nn.Module):
         return self.state_dict
 
 class TopKBimpalaCNN(nn.Module):
-    def __init__(self, obs_space, num_outputs, kernel_size, B, topk):
+    def __init__(self, obs_space, num_outputs, kernel_size, topk,B, replacement_layers =["mlp"]):
         super(TopKBimpalaCNN, self).__init__()
         self.topk = topk
+        self.kernel_size = kernel_size
+        self.replacement_layers = replacement_layers
         h, w, c = obs_space.shape
         shape = (c, h, w)
 
@@ -127,7 +130,6 @@ class TopKBimpalaCNN(nn.Module):
 
         self.conv_seqs = nn.ModuleList(conv_seqs)
         
-        self.B = B
         #initialise the hiddenfcs to calculate the values
         self.hidden_fc1 = nn.Linear(in_features=shape[0] * shape[1] * shape[2],
                                    out_features=256, bias=False)
@@ -136,37 +138,85 @@ class TopKBimpalaCNN(nn.Module):
         self.logits_fc = nn.Linear(in_features=256, out_features=num_outputs)
         self.value_fc = nn.Linear(in_features=256, out_features=1)
 
-        #the linear algebra
-        eigvals, eigvecs = torch.linalg.eigh(self.B)
-        # Initialize tensors to store the top-k eigenvalues and eigenvectors for each class
-        self.top_k_eigenvalues = torch.empty(eigvals.size(0), self.topk)
-        self.top_k_eigenvectors = torch.empty(eigvecs.size(0), eigvecs.size(1), self.topk)
-
-        # Sort eigenvalues and eigenvectors for each class separately
-        for i in range(eigvals.size(0)):
-            sorted_indices = torch.argsort(torch.abs(eigvals[i]), descending=True)
-            topk_indices = sorted_indices[:self.topk]
-            self.top_k_eigenvalues[i] = eigvals[i, topk_indices]
-            self.top_k_eigenvectors[i] = eigvecs[i, :, topk_indices]
-
         nn.init.orthogonal_(self.logits_fc.weight, gain=0.01)
         nn.init.zeros_(self.logits_fc.bias)
+        if "mlp" in self.replacement_layers:
+            eigvals, eigvecs = torch.linalg.eigh(B)
+            # Initialize tensors to store the top-k eigenvalues and eigenvectors for each class
+            self.top_k_eigenvalues = torch.empty(eigvals.size(0), self.topk)
+            self.top_k_eigenvectors = torch.empty(eigvecs.size(0), eigvecs.size(1), self.topk)            
+            # Sort eigenvalues and eigenvectors for each class separately
+            for i in range(eigvals.size(0)):
+                sorted_indices = torch.argsort(torch.abs(eigvals[i]), descending=True)
+                topk_indices = sorted_indices[:self.topk]
+                self.top_k_eigenvalues[i] = eigvals[i, topk_indices]
+                self.top_k_eigenvectors[i] = eigvecs[i, :, topk_indices]
+        else:
+            eigvals, eigvecs = torch.linalg.eigh(B)
+            # Initialize tensors to store the top-k eigenvalues and eigenvectors for each class
+            self.top_k_conv_eigenvals = torch.empty(eigvals.size(0), self.topk)
+            self.top_k_eigenfilters = torch.empty(eigvecs.size(0), eigvecs.size(1), self.topk)
 
+            # Sort eigenvalues and eigenvectors for each class separately
+            for i in range(eigvals.size(0)):
+                sorted_indices = torch.argsort(torch.abs(eigvals[i]), descending=True)
+                topk_indices = sorted_indices[:self.topk]
+                self.top_k_conv_eigenvals[i] = eigvals[i, topk_indices]
+                self.top_k_eigenfilters[i] = eigvecs[i, :, topk_indices]
+
+
+
+    def apply_eigenvectors(self, x,top_k_eigenvalues, top_k_eigenvectors, type= "mlp", out_channels=32, c_in=32):
+        if type == "mlp":
+            sims = torch.einsum("c f t, b f -> b c t", top_k_eigenvectors.to(x.device), x)
+            logits = torch.einsum("c t, b c t -> b c", top_k_eigenvalues.to(x.device), sims**2)
+            return logits
+        
+        else:
+            top_k_eigenfilters = top_k_eigenvectors.reshape(top_k_eigenvectors.size(0),c_in ,self.kernel_size,self.kernel_size,top_k_eigenvectors.size(-1))
+            out_activations = torch.zeros(out_channels, self.topk, 8, 8)
+            padding = (self.kernel_size -1) // 2
+            for channel in range(out_channels):
+                for eig_idx in range(self.topk):
+                    conv = torch.nn.Conv2d(in_channels=c_in, out_channels=1, kernel_size=self.kernel_size, bias=False, padding=padding, stride=1)
+                    # Move the weight to the same device as x
+                    weight = top_k_eigenfilters[channel].unsqueeze(0)[:,:,:,:,eig_idx].to(x.device)  
+                    conv.weight = torch.nn.Parameter(weight)
+                    #remove the batch dimension
+                    filtered = conv(x)    
+                    # we need to remove both batch dimensions and output dimensions as we are adding along that dimension
+                    filtered_squared = (filtered.squeeze(0).squeeze(0))**2         
+                    eig_sims = top_k_eigenvalues[channel, eig_idx] * filtered_squared
+                    out_activations[channel,eig_idx,:] = eig_sims
+
+            result = out_activations.sum(dim=1)
+        
+            return result
+
+    
     def forward(self, obs):
         assert obs.ndim == 4
         x = obs / 255.0  # scale to 0-1
         x = x.permute(0, 3, 1, 2)  # NHWC => NCHW
         x = self.conv(x)
-        for conv_seq in self.conv_seqs:
-            x = conv_seq(x)
-        x = torch.flatten(x, start_dim=1)
-        #print("shape of eigenvectors and eigenvalues", self.top_k_eigenvectors.shape, self.top_k_eigenvalues.shape)
-        sims = torch.einsum("c f t, b f -> b c t", self.top_k_eigenvectors.to(x.device), x)
-        #print("sims shape", sims.shape)
-        logits = torch.einsum("c t, b c t -> b c", self.top_k_eigenvalues.to(x.device), sims**2)
-        #print("logits are", logits)
+        for idx, conv_seq in enumerate(self.conv_seqs):
+            if (f"conv_seq_{idx}") in self.replacement_layers:
+                x = conv_seq.max_pool2d(x)
+                x = conv_seq.res_block0(x)
+                conv_output = self.apply_eigenvectors(x,self.top_k_conv_eigenvals,self.top_k_eigenfilters,"conv", out_channels=32, c_in=32).to(x.device)
+                print("the shape of the convolutional outputs: top k values , shape of convolutions", self.topk,conv_output.shape, conv_output[:, :10,:10])
+                x += conv_output
+            else:    
+                x = conv_seq(x)
 
-        logits = logits + self.logits_fc.bias
+        x = torch.flatten(x, start_dim=1)
+        if "mlp" in self.replacement_layers:
+            logits = self.apply_eigenvectors(x,self.top_k_eigenvalues, self.top_k_eigenvectors, "mlp")
+            logits = logits + self.logits_fc.bias
+        else:
+            logits = self.hidden_fc1(x) * self.hidden_fc2(x)
+            logits = self.logits_fc(logits)
+        
         dist = torch.distributions.Categorical(logits=logits)
         x = self.hidden_fc1(x) * self.hidden_fc2(x)
         value = self.value_fc(x)
