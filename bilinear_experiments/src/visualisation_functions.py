@@ -48,229 +48,6 @@ def plot_top_f1_scores(new_classification_data, categories, colors, top_n=15, ti
     plt.show()
 
 
-# weight visualizations a la Claude #1 
-
-
-def create_weight_matrix_plot(weight_matrix, title="Weight Matrix", diverging=True):
-    """
-    Creates a heatmap visualization of neural network weights.
-    
-    Parameters:
-    weight_matrix: 2D numpy array of weights
-    title: String title for the plot
-    diverging: Boolean, whether to use diverging colormap (True) or sequential (False)
-    """
-    plt.figure(figsize=(10, 8))
-    
-    # Create custom colormap
-    if diverging:
-        colors = ['#4333ff', '#ffffff', '#ff3333']  # Blue to White to Red
-        n_bins = 256
-        cmap = LinearSegmentedColormap.from_list("custom", colors, N=n_bins)
-    else:
-        cmap = 'viridis'
-    
-    # Normalize the weights for better visualization
-    vmax = np.abs(weight_matrix).max()
-    vmin = -vmax if diverging else 0
-    
-    # Create heatmap
-    sns.heatmap(weight_matrix, 
-                cmap=cmap,
-                center=0 if diverging else None,
-                vmin=vmin,
-                vmax=vmax,
-                square=True,
-                cbar_kws={'label': 'Weight Value'})
-    
-    plt.title(title)
-    plt.xlabel('Output Features')
-    plt.ylabel('Input Features')
-    return plt.gcf()
-
-def visualize_feature_patterns(activation_matrix, n_top_features=5, title="Feature Activation Patterns"):
-    """
-    Visualizes top activation patterns for different features.
-    
-    Parameters:
-    activation_matrix: 2D numpy array of feature activations
-    n_top_features: Number of top features to display
-    title: String title for the plot
-    """
-    plt.figure(figsize=(15, 3 * n_top_features))
-    
-    # Get top activating examples for each feature
-    for i in range(min(n_top_features, activation_matrix.shape[1])):
-        activations = activation_matrix[:, i]
-        plt.subplot(n_top_features, 1, i + 1)
-        plt.plot(activations)
-        plt.title(f'Feature {i+1} Activation Pattern')
-        plt.xlabel('Position')
-        plt.ylabel('Activation')
-        
-    plt.tight_layout()
-    return plt.gcf()
-
-def attention_pattern_plot(attention_weights, title="Attention Pattern"):
-    """
-    Creates a visualization of attention patterns.
-    
-    Parameters:
-    attention_weights: 2D numpy array of attention weights
-    title: String title for the plot
-    """
-    plt.figure(figsize=(10, 8))
-    
-    # Create heatmap with custom colormap
-    sns.heatmap(attention_weights,
-                cmap='YlOrRd',
-                square=True,
-                cbar_kws={'label': 'Attention Weight'})
-    
-    plt.title(title)
-    plt.xlabel('Key Position')
-    plt.ylabel('Query Position')
-    return plt.gcf()
-
-# Example usage
-# if __name__ == "__main__":
-#     # Generate sample data
-#     np.random.seed(42)
-    
-#     # Sample weight matrix
-#     weights = np.random.randn(20, 20)
-#     fig1 = create_weight_matrix_plot(weights, "Sample Weight Matrix")
-    
-#     # Sample activation patterns
-#     activations = np.random.randn(100, 10)
-#     fig2 = visualize_feature_patterns(activations, n_top_features=3)
-    
-#     # Sample attention pattern
-#     attention = np.random.rand(15, 15)
-#     attention = attention / attention.sum(axis=1, keepdims=True)  # normalize
-#     fig3 = attention_pattern_plot(attention)
-    
-#     plt.show()
-
-# weight visualizations a la Claude  #2
-
-
-def visualize_conv_weights(weights, figsize=(12, 8), cmap='RdBu', normalize=True):
-    """
-    Visualize convolutional layer weights
-    
-    Parameters:
-    weights: numpy array of shape (num_filters, input_channels, height, width)
-            or (num_filters, height, width) for single-channel inputs
-    figsize: tuple of figure dimensions
-    cmap: colormap to use (default: RdBu for diverging weights)
-    normalize: whether to normalize weights to [-1, 1] range
-    """
-    # Add channel dimension if not present
-    if len(weights.shape) == 3:
-        weights = weights[:, np.newaxis, :, :]
-    
-    num_filters, num_channels, height, width = weights.shape
-    
-    # Calculate grid layout
-    grid_size = int(np.ceil(np.sqrt(num_filters)))
-    
-    # Create figure and gridspec
-    fig = plt.figure(figsize=figsize)
-    gs = GridSpec(grid_size, grid_size, figure=fig)
-    
-    # Normalize weights if requested
-    if normalize:
-        weights = weights / np.max(np.abs(weights))
-    
-    # Plot each filter
-    for i in range(num_filters):
-        ax = fig.add_subplot(gs[i // grid_size, i % grid_size])
-        
-        if num_channels == 1:
-            # Single channel visualization
-            im = ax.imshow(weights[i, 0], cmap=cmap)
-        else:
-            # Multi-channel visualization - create RGB image
-            # Normalize each channel separately
-            rgb = np.zeros((height, width, 3))
-            for c in range(min(num_channels, 3)):  # Only use first 3 channels for RGB
-                channel_data = weights[i, c]
-                channel_min, channel_max = channel_data.min(), channel_data.max()
-                rgb[:, :, c] = (channel_data - channel_min) / (channel_max - channel_min)
-            im = ax.imshow(rgb)
-        
-        ax.axis('off')
-        ax.set_title(f'Filter {i+1}')
-    
-    plt.tight_layout()
-    return fig
-
-def visualize_feature_maps(feature_maps, figsize=(12, 8), cmap='viridis'):
-    """
-    Visualize feature maps (activations) from a convolutional layer
-    
-    Parameters:
-    feature_maps: numpy array of shape (num_maps, height, width)
-    figsize: tuple of figure dimensions
-    cmap: colormap to use (default: viridis for activation values)
-    """
-    num_maps = feature_maps.shape[0]
-    grid_size = int(np.ceil(np.sqrt(num_maps)))
-    
-    fig = plt.figure(figsize=figsize)
-    gs = GridSpec(grid_size, grid_size, figure=fig)
-    
-    for i in range(num_maps):
-        ax = fig.add_subplot(gs[i // grid_size, i % grid_size])
-        im = ax.imshow(feature_maps[i], cmap=cmap)
-        ax.axis('off')
-        ax.set_title(f'Map {i+1}')
-    
-    plt.tight_layout()
-    return fig
-
-def visualize_weight_distribution(weights, figsize=(10, 6)):
-    """
-    Visualize the distribution of weights in a layer
-    
-    Parameters:
-    weights: numpy array of weights
-    figsize: tuple of figure dimensions
-    """
-    plt.figure(figsize=figsize)
-    
-    # Plot histogram with KDE
-    sns.histplot(weights.ravel(), kde=True)
-    plt.title('Weight Distribution')
-    plt.xlabel('Weight Value')
-    plt.ylabel('Count')
-    
-    # Add vertical line at zero
-    plt.axvline(x=0, color='r', linestyle='--', alpha=0.5)
-    
-    return plt.gcf()
-
-def visualize_weight_stats(weights):
-    """
-    Print statistical information about weights
-    
-    Parameters:
-    weights: numpy array of weights
-    """
-    stats = {
-        'Mean': np.mean(weights),
-        'Std': np.std(weights),
-        'Min': np.min(weights),
-        'Max': np.max(weights),
-        'Sparsity': np.mean(weights == 0),
-        'Abs Mean': np.mean(np.abs(weights))
-    }
-    
-    for name, value in stats.items():
-        print(f"{name}: {value:.4f}")
-
-
 
 
 class ConvFilterAnalyzer:
@@ -279,6 +56,7 @@ class ConvFilterAnalyzer:
         self.device = device
         self.model.to(device)
         self.model.eval()
+
 
     def get_filter_responses(self, image, layer_name, filter_indices=None):
         """
@@ -320,12 +98,8 @@ class ConvFilterAnalyzer:
             activation = activation[:, filter_indices]
         
         return activation.cpu().numpy()
-
-    def visualize_filter_responses(self, image, layer_name, filter_indices=None, 
-                                 figsize=(15, 10)):
-        """
-        Visualize how specific filters respond to an input image.
-        """
+    
+    def visualize_filter_responses(self, image, layer_name, filter_indices=None, figsize=(15, 10)):
         responses = self.get_filter_responses(image, layer_name, filter_indices)
         n_filters = responses.shape[1]
         
@@ -333,21 +107,13 @@ class ConvFilterAnalyzer:
         n_cols = min(8, n_filters)
         n_rows = (n_filters - 1) // n_cols + 1
         
+        # Create figure
         fig, axes = plt.subplots(n_rows, n_cols, figsize=figsize)
         if n_rows == 1:
             axes = axes.reshape(1, -1)
         
-        # Plot original image
-        plt.figure(figsize=(5, 5))
-        plt.imshow(image if isinstance(image, Image.Image) else 
-                  image.squeeze(0).permute(1, 2, 0).cpu().numpy())
-        plt.title('Original Image')
-        plt.axis('off')
-        
-
         # Plot activation maps
         for i in range(n_filters):
-            
             ax = axes[i // n_cols, i % n_cols]
             activation = responses[0, i]
             
@@ -359,11 +125,11 @@ class ConvFilterAnalyzer:
             ax.axis('off')
             ax.set_title(f'Filter {filter_indices[i]}')
             print(f'max: {activation.max()}, min:{activation.min()}')
-
         
         plt.tight_layout()
+        plt.close(fig)  # Close the figure immediately after creating it
         return fig
-
+        
     def generate_filter_visualization(self, layer_name, filter_idx, 
                                     input_size=(224, 224), 
                                     n_iterations=30):
